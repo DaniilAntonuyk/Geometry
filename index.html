@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Древо геометрии</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  html,body{height:100%}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+
+  :root{
+    color-scheme: light;
+    --bg:#f6f8fc;
+    --grid:rgba(43,86,198,0.06);
+    --surface:#ffffff;
+    --surface-2:#eef2fa;
+    --ink:#16202f;
+    --muted:#5c6779;
+    --line:#d6dced;
+    --line-strong:#c2cbe0;
+    --accent:#2b56c6;
+    --accent-ink:#1e3c8c;
+    --accent-soft:rgba(43,86,198,0.10);
+    --prop:#0d8a67;
+    --prop-soft:rgba(13,138,103,0.12);
+    --sign:#b9600a;
+    --sign-soft:rgba(185,96,10,0.13);
+    --formula-bg:#eef1f8;
+    --shadow:0 1px 2px rgba(20,32,47,.06), 0 8px 24px rgba(20,32,47,.06);
+    --radius:14px;
+    --fs-body:15px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#0e131d;
+      --grid:rgba(125,155,245,0.06);
+      --surface:#161e2c;
+      --surface-2:#1d2637;
+      --ink:#e8edf6;
+      --muted:#98a4ba;
+      --line:#2a3446;
+      --line-strong:#374359;
+      --accent:#7096ff;
+      --accent-ink:#a9c0ff;
+      --accent-soft:rgba(112,150,255,0.16);
+      --prop:#43d2a4;
+      --prop-soft:rgba(67,210,164,0.16);
+      --sign:#f0ab5a;
+      --sign-soft:rgba(240,171,90,0.16);
+      --formula-bg:#1d2637;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#0e131d;
+    --grid:rgba(125,155,245,0.06);
+    --surface:#161e2c;
+    --surface-2:#1d2637;
+    --ink:#e8edf6;
+    --muted:#98a4ba;
+    --line:#2a3446;
+    --line-strong:#374359;
+    --accent:#7096ff;
+    --accent-ink:#a9c0ff;
+    --accent-soft:rgba(112,150,255,0.16);
+    --prop:#43d2a4;
+    --prop-soft:rgba(67,210,164,0.16);
+    --sign:#f0ab5a;
+    --sign-soft:rgba(240,171,90,0.16);
+    --formula-bg:#1d2637;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size:var(--fs-body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    max-width:1140px;
+    margin:0 auto;
+    padding-inline:16px;
+    padding-block:22px 60px;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:24px 24px;
+    min-height:100%;
+  }
+
+  header.hd{margin-bottom:18px}
+  .eyebrow{
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent-ink); font-weight:700; margin:0 0 6px;
+  }
+  h1{
+    font-family:"Fraunces", Georgia, serif;
+    font-weight:600; font-size:clamp(28px,5.2vw,42px);
+    line-height:1.05; margin:0; letter-spacing:-.01em; text-wrap:balance;
+  }
+  .lead{color:var(--muted); margin:8px 0 0; max-width:60ch}
+  .lead b{color:var(--ink); font-weight:600}
+
+  .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:18px 0 14px}
+  .tabs{display:inline-flex; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:4px; gap:2px}
+  .tab{
+    appearance:none; border:0; background:transparent; cursor:pointer;
+    font:inherit; font-weight:600; color:var(--muted);
+    padding:7px 16px; border-radius:999px; transition:.15s;
+  }
+  .tab[aria-selected="true"]{background:var(--surface); color:var(--accent-ink); box-shadow:var(--shadow)}
+  .spacer{flex:1 1 auto}
+  .btn{
+    appearance:none; cursor:pointer; font:inherit; font-weight:600;
+    border-radius:10px; padding:9px 14px; transition:.15s;
+    border:1px solid var(--accent); background:var(--accent); color:#fff;
+    display:inline-flex; align-items:center; gap:7px;
+  }
+  .btn:hover{filter:brightness(1.06)}
+  .btn.ghost{background:transparent; color:var(--accent-ink); border-color:var(--line-strong)}
+  .btn.ghost:hover{background:var(--accent-soft); filter:none}
+  .btn.sm{padding:6px 11px; font-size:13.5px; border-radius:9px}
+  .btn.danger{border-color:transparent; background:transparent; color:var(--sign)}
+  .btn.danger:hover{background:var(--sign-soft); filter:none}
+  .btn:focus-visible, .tab:focus-visible, .node:focus-visible, .chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .layout{display:grid; grid-template-columns:minmax(0,340px) minmax(0,1fr); gap:22px; align-items:start}
+  @media (max-width:760px){ .layout{grid-template-columns:1fr; gap:16px} }
+
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+  .tree-panel{padding:14px 12px}
+  .tree-panel h2, .detail h2.dh{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:2px 4px 10px; font-weight:700}
+
+  ul.tree, ul.tree ul{list-style:none; margin:0; padding:0}
+  ul.tree ul{margin-left:12px; padding-left:14px; border-left:1.5px dashed var(--line-strong)}
+  ul.tree li{margin:3px 0; position:relative}
+  .node{
+    display:flex; align-items:center; gap:9px; width:100%;
+    appearance:none; border:1px solid transparent; background:transparent;
+    font:inherit; text-align:left; cursor:pointer; color:var(--ink);
+    padding:6px 9px; border-radius:10px; transition:.13s;
+  }
+  .node:hover{background:var(--surface-2)}
+  .node[aria-current="true"]{background:var(--accent-soft); border-color:var(--accent); font-weight:600}
+  .node .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .node .badge{font-size:10.5px; color:#fff; background:var(--accent); border-radius:6px; padding:1px 6px; font-weight:700; letter-spacing:.02em; opacity:.9}
+  .node .badge.mine{background:var(--prop)}
+
+  .glyph{width:26px; height:20px; flex:0 0 auto}
+  .glyph polygon{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.7; stroke-linejoin:round}
+
+  /* detail */
+  .detail{padding:22px 22px 26px; min-height:200px}
+  .crumb{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; font-size:13px; color:var(--muted)}
+  .chip{
+    appearance:none; border:1px solid var(--line-strong); background:var(--surface-2);
+    color:var(--accent-ink); font:inherit; font-size:12.5px; font-weight:600;
+    padding:3px 10px; border-radius:999px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;
+  }
+  .chip:hover{background:var(--accent-soft)}
+  .chip.static{cursor:default}
+  .chip.static:hover{background:var(--surface-2)}
+
+  .title-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .title-row .bigglyph{width:52px; height:40px}
+  .detail h1.name{font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:clamp(24px,4vw,34px); margin:0; letter-spacing:-.01em}
+
+  .adds{
+    margin:16px 0 4px; padding:12px 14px; border-radius:12px;
+    background:var(--accent-soft); border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    display:flex; gap:10px; align-items:flex-start;
+  }
+  .adds .k{font-weight:700; color:var(--accent-ink); white-space:nowrap}
+  @supports not (background: color-mix(in srgb, red, blue)){ .adds{border-color:var(--line-strong)} }
+
+  section.sec{margin-top:22px}
+  .sec-h{display:flex; align-items:center; gap:9px; margin-bottom:9px}
+  .sec-h .dot{width:9px; height:9px; border-radius:3px; flex:0 0 auto}
+  .sec-h h3{margin:0; font-size:15px; font-weight:700}
+  .sec-h .hint{font-size:12.5px; color:var(--muted); font-weight:500}
+  .def{margin:0; font-size:16px; line-height:1.55}
+
+  ul.items{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px}
+  ul.items li{position:relative; padding:9px 12px 9px 34px; background:var(--surface-2); border-radius:10px; line-height:1.45}
+  ul.items li::before{content:""; position:absolute; left:13px; top:14px; width:8px; height:8px; border-radius:50%}
+  .items.prop li::before{background:var(--prop)}
+  .items.sign li::before{background:var(--sign)}
+  .items.prop li{background:var(--prop-soft)}
+  .items.sign li{background:var(--sign-soft)}
+
+  .formulas{display:flex; flex-direction:column; gap:6px}
+  .formulas code{
+    font-family:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size:14px; background:var(--formula-bg); border:1px solid var(--line);
+    padding:8px 12px; border-radius:9px; display:block; overflow-x:auto; white-space:nowrap;
+  }
+  .empty{color:var(--muted); font-style:italic; font-size:14px}
+
+  .actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; padding-top:16px; border-top:1px solid var(--line)}
+  .confirm{display:inline-flex; gap:6px; align-items:center; background:var(--sign-soft); padding:4px 6px 4px 12px; border-radius:10px; font-size:13.5px}
+
+  .ro-note{margin:12px 0 0; font-size:13px; color:var(--muted); background:var(--surface-2); border:1px dashed var(--line-strong); border-radius:10px; padding:9px 12px}
+
+  /* modal */
+  .overlay{position:fixed; inset:0; background:rgba(10,16,26,.55); display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; overflow:auto; z-index:50}
+  .modal{background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); width:100%; max-width:560px; padding:20px 20px 22px; margin:auto}
+  .modal h3{margin:0 0 4px; font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:22px}
+  .modal p.sub{margin:0 0 14px; color:var(--muted); font-size:13.5px}
+  .field{margin-bottom:13px}
+  .field label{display:block; font-weight:600; font-size:13px; margin-bottom:4px}
+  .field .desc{font-weight:500; color:var(--muted); font-size:12px}
+  .field input, .field select, .field textarea{
+    width:100%; font:inherit; color:var(--ink); background:var(--bg);
+    border:1px solid var(--line-strong); border-radius:9px; padding:9px 11px;
+  }
+  .field textarea{resize:vertical; min-height:68px; line-height:1.45}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--accent); outline-offset:0; border-color:var(--accent)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media (max-width:520px){ .grid2{grid-template-columns:1fr} }
+  .modal-actions{display:flex; justify-content:flex-end; gap:9px; margin-top:18px}
+
+  #toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; font-weight:600; font-size:13.5px; box-shadow:var(--shadow); opacity:0; transition:.25s; pointer-events:none; z-index:60; max-width:92vw}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hd">
+    <p class="eyebrow">Геометрия · 8 класс</p>
+    <h1>Древо геометрии</h1>
+    <p class="lead">Каждая фигура <b>вырастает из другой</b> и добавляет к ней одно новое свойство. Нажми на фигуру в дереве — откроются её определение, свойства и признаки. Дерево можно дополнять самому: оно растёт вместе с тобой.</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="tabs" role="tablist" aria-label="Семейства фигур">
+      <button class="tab" role="tab" data-fam="quad" aria-selected="true">Четырёхугольники</button>
+      <button class="tab" role="tab" data-fam="tri" aria-selected="false">Треугольники</button>
+    </div>
+    <span class="spacer"></span>
+    <button class="btn" id="addBtn">＋ Добавить фигуру</button>
+  </div>
+
+  <div class="layout">
+    <aside class="panel tree-panel">
+      <h2>Дерево</h2>
+      <div id="tree"></div>
+    </aside>
+    <main class="panel detail" id="detail"></main>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ——— облако (Supabase) ———
+  var SUPABASE_URL = "https://ivtcfmtkiimjkmoxjfug.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_GgefYSwZceoOKw0Z0dZqiQ_Kop9T6sD";
+  var TABLE = "figures";
+  var sb = null;
+
+  var SHAPE_PTS = {
+    quad:"5,9 43,6 39,29 9,31",
+    parallelogram:"15,7 46,7 33,29 2,29",
+    rectangle:"5,8 43,8 43,28 5,28",
+    rhombus:"24,4 44,18 24,32 4,18",
+    square:"11,6 37,6 37,32 11,32",
+    trapezoid:"14,8 34,8 44,28 4,28",
+    iso_trapezoid:"16,8 32,8 43,28 5,28",
+    right_trapezoid:"6,8 34,8 44,28 6,28",
+    triangle:"24,5 44,30 4,30",
+    iso_triangle:"24,4 40,31 8,31",
+    equi_triangle:"24,5 42,31 6,31",
+    right_triangle:"7,6 7,30 43,30",
+    custom:"24,4 43,15 37,32 11,32 5,15"
+  };
+  var SHAPE_NAMES = {
+    quad:"Четырёхугольник", parallelogram:"Параллелограмм", rectangle:"Прямоугольник",
+    rhombus:"Ромб", square:"Квадрат", trapezoid:"Трапеция", iso_trapezoid:"Равноб. трапеция",
+    right_trapezoid:"Прямоуг. трапеция", triangle:"Треугольник", iso_triangle:"Равноб. треугольник",
+    equi_triangle:"Равностор. треугольник", right_triangle:"Прямоуг. треугольник", custom:"Другая фигура"
+  };
+  function glyph(shape, cls){
+    var pts = SHAPE_PTS[shape] || SHAPE_PTS.custom;
+    return '<svg class="glyph '+(cls||'')+'" viewBox="0 0 48 36" aria-hidden="true"><polygon points="'+pts+'"/></svg>';
+  }
+
+  var BUILTIN = [
+    // ——— Четырёхугольники ———
+    { id:"quadrilateral", family:"quad", parent:"", shape:"quad", order:0,
+      name:"Четырёхугольник",
+      definition:"Многоугольник, у которого четыре стороны и четыре вершины (никакие три вершины не лежат на одной прямой).",
+      properties:["Сумма всех углов равна 360°.","Имеет две диагонали."], signs:[], formulas:[] },
+
+    { id:"parallelogram", family:"quad", parent:"quadrilateral", shape:"parallelogram", order:1,
+      name:"Параллелограмм",
+      definition:"Четырёхугольник, у которого противоположные стороны попарно параллельны.",
+      adds:"К четырёхугольнику добавляется: противоположные стороны параллельны.",
+      properties:["Противоположные стороны равны.","Противоположные углы равны.","Сумма соседних углов равна 180°.","Диагонали точкой пересечения делятся пополам."],
+      signs:["Если противоположные стороны попарно равны — это параллелограмм.","Если две стороны равны и параллельны — это параллелограмм.","Если диагонали точкой пересечения делятся пополам — это параллелограмм.","Если противоположные углы попарно равны — это параллелограмм."],
+      formulas:["P = 2·(a + b)","S = a · h","S = a · b · sin α"] },
+
+    { id:"rectangle", family:"quad", parent:"parallelogram", shape:"rectangle", order:1,
+      name:"Прямоугольник",
+      definition:"Параллелограмм, у которого все углы прямые.",
+      adds:"К параллелограмму добавляется: все углы по 90°.",
+      properties:["Обладает всеми свойствами параллелограмма.","Диагонали равны."],
+      signs:["Если у параллелограмма диагонали равны — это прямоугольник.","Если у параллелограмма есть прямой угол — это прямоугольник."],
+      formulas:["P = 2·(a + b)","S = a · b","d = √(a² + b²)"] },
+
+    { id:"rhombus", family:"quad", parent:"parallelogram", shape:"rhombus", order:2,
+      name:"Ромб",
+      definition:"Параллелограмм, у которого все стороны равны.",
+      adds:"К параллелограмму добавляется: все стороны равны.",
+      properties:["Обладает всеми свойствами параллелограмма.","Диагонали перпендикулярны.","Диагонали делят углы пополам (являются биссектрисами)."],
+      signs:["Если у параллелограмма диагонали перпендикулярны — это ромб.","Если диагональ параллелограмма делит его угол пополам — это ромб.","Если у параллелограмма все стороны равны — это ромб."],
+      formulas:["P = 4·a","S = a · h","S = ½ · d₁ · d₂","S = a² · sin α"] },
+
+    { id:"square", family:"quad", parent:"rectangle", alsoParent:"rhombus", shape:"square", order:1,
+      name:"Квадрат",
+      definition:"Прямоугольник, у которого все стороны равны. Он же — ромб, у которого все углы прямые.",
+      adds:"Соединяет прямоугольник и ромб: все стороны равны И все углы прямые.",
+      properties:["Все стороны равны, все углы по 90°.","Диагонали равны (как у прямоугольника).","Диагонали перпендикулярны и делят углы пополам (как у ромба).","Диагонали точкой пересечения делятся пополам."],
+      signs:["Если у прямоугольника все стороны равны — это квадрат.","Если у ромба есть прямой угол — это квадрат.","Если у параллелограмма диагонали равны и перпендикулярны — это квадрат."],
+      formulas:["P = 4·a","S = a²","d = a·√2"] },
+
+    { id:"trapezoid", family:"quad", parent:"quadrilateral", shape:"trapezoid", order:2,
+      name:"Трапеция",
+      definition:"Четырёхугольник, у которого две стороны параллельны (основания), а две другие — нет (боковые стороны).",
+      adds:"К четырёхугольнику добавляется: ровно одна пара параллельных сторон.",
+      properties:["Сумма углов при каждой боковой стороне равна 180°.","Средняя линия параллельна основаниям и равна их полусумме."],
+      signs:[],
+      formulas:["m = (a + b) / 2   — средняя линия","S = ½ · (a + b) · h"] },
+
+    { id:"iso_trapezoid", family:"quad", parent:"trapezoid", shape:"iso_trapezoid", order:1,
+      name:"Равнобедренная трапеция",
+      definition:"Трапеция, у которой боковые стороны равны.",
+      adds:"К трапеции добавляется: боковые стороны равны.",
+      properties:["Углы при каждом основании равны.","Диагонали равны.","Около неё можно описать окружность."],
+      signs:["Если у трапеции углы при основании равны — она равнобедренная.","Если у трапеции диагонали равны — она равнобедренная."],
+      formulas:[] },
+
+    { id:"right_trapezoid", family:"quad", parent:"trapezoid", shape:"right_trapezoid", order:2,
+      name:"Прямоугольная трапеция",
+      definition:"Трапеция, у которой одна боковая сторона перпендикулярна основаниям.",
+      adds:"К трапеции добавляется: два прямых угла у одной боковой стороны.",
+      properties:["Два угла прямые (90°).","Боковая сторона, перпендикулярная основаниям, равна высоте."],
+      signs:[], formulas:[] },
+
+    // ——— Треугольники ———
+    { id:"triangle", family:"tri", parent:"", shape:"triangle", order:0,
+      name:"Треугольник",
+      definition:"Многоугольник с тремя сторонами и тремя вершинами.",
+      properties:["Сумма углов равна 180°.","Против большей стороны лежит больший угол (и наоборот).","Неравенство треугольника: каждая сторона меньше суммы двух других."],
+      signs:[],
+      formulas:["P = a + b + c","S = ½ · a · h"] },
+
+    { id:"isosceles", family:"tri", parent:"triangle", shape:"iso_triangle", order:1,
+      name:"Равнобедренный треугольник",
+      definition:"Треугольник, у которого две стороны (боковые) равны.",
+      adds:"К треугольнику добавляется: две стороны равны.",
+      properties:["Углы при основании равны.","Медиана, биссектриса и высота, проведённые к основанию, совпадают."],
+      signs:["Если два угла треугольника равны — он равнобедренный.","Если медиана треугольника является его высотой — он равнобедренный."],
+      formulas:[] },
+
+    { id:"equilateral", family:"tri", parent:"isosceles", shape:"equi_triangle", order:1,
+      name:"Равносторонний треугольник",
+      definition:"Треугольник, у которого все три стороны равны.",
+      adds:"К равнобедренному добавляется: равны все три стороны, а не только две.",
+      properties:["Все углы равны по 60°.","Является правильным треугольником.","Все медианы, биссектрисы и высоты совпадают."],
+      signs:["Если все углы треугольника равны — он равносторонний."],
+      formulas:["P = 3·a","S = (a²·√3) / 4","h = (a·√3) / 2"] },
+
+    { id:"right_triangle", family:"tri", parent:"triangle", shape:"right_triangle", order:2,
+      name:"Прямоугольный треугольник",
+      definition:"Треугольник, у которого один угол прямой (90°).",
+      adds:"К треугольнику добавляется: один угол прямой.",
+      properties:["Сторона против прямого угла — гипотенуза (самая длинная); две другие — катеты.","Сумма двух острых углов равна 90°.","Катет, лежащий против угла 30°, равен половине гипотенузы."],
+      signs:["Если один угол треугольника равен 90° — он прямоугольный.","Если c² = a² + b² — треугольник прямоугольный (обратная теорема Пифагора)."],
+      formulas:["Теорема Пифагора:  c² = a² + b²","S = ½ · a · b   (a, b — катеты)","sin A = a / c ,  cos A = b / c ,  tg A = a / b"] }
+  ];
+  var BUILTIN_IDS = {}; BUILTIN.forEach(function(b){ BUILTIN_IDS[b.id]=true; });
+
+  // ——— state ———
+  var CACHE_KEY = "geotree_cache_v1";
+  var writable=true, dbReady=true;
+  var overrides = {};              // id -> изменения (общие для всех устройств)
+  var state = { family:"quad", selected:"parallelogram" };
+
+  // localStorage используется только как офлайн-кэш последнего состояния
+  function loadCache(){
+    try{ var raw=localStorage.getItem(CACHE_KEY); overrides = raw ? (JSON.parse(raw)||{}) : {}; }
+    catch(e){ overrides = {}; }
+  }
+  function saveCache(){
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify(overrides)); }catch(e){}
+  }
+  // подтянуть все правки из облака и перерисовать
+  function pullCloud(){
+    if(!sb) return Promise.resolve();
+    return sb.from(TABLE).select("id,payload").then(function(res){
+      if(res.error){ return; }
+      var next={};
+      (res.data||[]).forEach(function(row){ if(row && row.id) next[row.id]=row.payload||{}; });
+      overrides=next; saveCache(); render();
+    });
+  }
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function arr(x){ return Array.isArray(x)?x:[]; }
+
+  function merged(){
+    var map={};
+    BUILTIN.forEach(function(b){ map[b.id]=Object.assign({}, b); });
+    Object.keys(overrides).forEach(function(id){
+      var o=overrides[id];
+      if(o && o.deleted){ delete map[id]; return; }
+      map[id]=Object.assign({}, map[id]||{}, o, {id:id});
+    });
+    return map;
+  }
+  function figuresOf(fam){
+    var m=merged(), out=[];
+    Object.keys(m).forEach(function(k){ if(m[k].family===fam) out.push(m[k]); });
+    return out;
+  }
+  function childrenOf(id, fam){
+    return figuresOf(fam).filter(function(f){ return (f.parent||"")===id; })
+      .sort(function(a,b){ return (a.order==null?999:a.order)-(b.order==null?999:b.order) || a.name.localeCompare(b.name,"ru"); });
+  }
+  function descendants(id, fam){
+    var out=[], stack=childrenOf(id,fam);
+    while(stack.length){ var n=stack.pop(); out.push(n.id); stack=stack.concat(childrenOf(n.id,fam)); }
+    return out;
+  }
+  function get(id){ return merged()[id]; }
+
+  // ——— rendering ———
+  function render(){
+    document.querySelectorAll(".tab").forEach(function(t){
+      t.setAttribute("aria-selected", t.dataset.fam===state.family ? "true":"false");
+    });
+    renderTree();
+    renderDetail();
+  }
+
+  function nodeHTML(f){
+    var mine = !BUILTIN_IDS[f.id];
+    var cur = f.id===state.selected;
+    var badge = mine ? '<span class="badge mine">моё</span>' : '';
+    return '<button class="node" data-id="'+esc(f.id)+'" aria-current="'+(cur?"true":"false")+'">'
+      + glyph(f.shape) + '<span class="nm">'+esc(f.name)+'</span>' + badge + '</button>';
+  }
+  function treeList(id, fam){
+    var kids = childrenOf(id, fam);
+    if(!kids.length) return "";
+    var html = "<ul"+(id===""?' class="tree"':"")+">";
+    kids.forEach(function(k){
+      html += "<li>" + nodeHTML(k) + treeList(k.id, fam) + "</li>";
+    });
+    html += "</ul>";
+    return html;
+  }
+  function renderTree(){
+    var roots = childrenOf("", state.family);
+    var html = '<ul class="tree">';
+    roots.forEach(function(r){ html += "<li>"+nodeHTML(r)+treeList(r.id,state.family)+"</li>"; });
+    html += "</ul>";
+    document.getElementById("tree").innerHTML = html;
+  }
+
+  function listSection(title, hint, items, cls){
+    var body;
+    if(items && items.length){
+      body = '<ul class="items '+cls+'">'+items.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+"</ul>";
+    } else {
+      body = '<p class="empty">Пока не заполнено'+(writable?" — нажми «Редактировать», чтобы добавить.":".")+'</p>';
+    }
+    var color = cls==="prop" ? "var(--prop)" : (cls==="sign" ? "var(--sign)" : "var(--accent)");
+    return '<section class="sec"><div class="sec-h"><span class="dot" style="background:'+color+'"></span>'
+      + '<h3>'+esc(title)+'</h3>'+(hint?'<span class="hint">'+esc(hint)+'</span>':'')+'</div>'+body+'</section>';
+  }
+  function defSection(text){
+    return '<section class="sec"><div class="sec-h"><span class="dot" style="background:var(--accent)"></span>'
+      + '<h3>Определение</h3></div><p class="def">'+esc(text||"")+'</p></section>';
+  }
+
+  function renderDetail(){
+    var el=document.getElementById("detail");
+    var f=get(state.selected);
+    if(!f){
+      var first=childrenOf("",state.family)[0];
+      if(first){ state.selected=first.id; return renderDetail(); }
+      el.innerHTML='<p class="empty">Выбери фигуру в дереве.</p>'; return;
+    }
+    var m=merged();
+    var html="";
+
+    // breadcrumb: parent chain
+    var chain=[], p=f.parent;
+    var guard=0;
+    while(p && m[p] && guard<20){ chain.unshift(m[p]); p=m[p].parent; guard++; }
+    if(chain.length){
+      html+='<div class="crumb">';
+      chain.forEach(function(c,i){
+        html+='<button class="chip" data-goto="'+esc(c.id)+'">'+esc(c.name)+'</button>';
+        html+='<span aria-hidden="true">›</span>';
+      });
+      html+='<span class="chip static">'+esc(f.name)+'</span>';
+      html+='</div>';
+    }
+
+    html+='<div class="title-row">'+glyph(f.shape,"bigglyph")+'<h1 class="name">'+esc(f.name)+'</h1></div>';
+
+    // grows-from row
+    var grow=[];
+    if(f.parent && m[f.parent]) grow.push(m[f.parent]);
+    if(f.alsoParent && m[f.alsoParent]) grow.push(m[f.alsoParent]);
+    if(grow.length){
+      html+='<div class="crumb" style="margin-top:12px"><span>Вырастает из:</span>';
+      grow.forEach(function(g){ html+='<button class="chip" data-goto="'+esc(g.id)+'">'+glyph(g.shape)+esc(g.name)+'</button>'; });
+      html+='</div>';
+    }
+
+    if(f.adds){
+      html+='<div class="adds"><span class="k">Что нового:</span><span>'+esc(f.adds)+'</span></div>';
+    }
+
+    html+=defSection(f.definition);
+
+    html+=listSection("Свойства","что верно, раз фигура уже такая", arr(f.properties),"prop");
+    html+=listSection("Признаки","как доказать, что фигура именно такая", arr(f.signs),"sign");
+    if(arr(f.formulas).length){
+      html+='<section class="sec"><div class="sec-h"><span class="dot" style="background:var(--accent)"></span><h3>Формулы</h3></div>'
+        +'<div class="formulas">'+arr(f.formulas).map(function(x){return "<code>"+esc(x)+"</code>";}).join("")+"</div></section>";
+    }
+
+    // actions
+    if(writable){
+      html+='<div class="actions">';
+      html+='<button class="btn sm" data-act="edit">✎ Редактировать</button>';
+      html+='<button class="btn sm ghost" data-act="child">＋ Добавить потомка</button>';
+      if(overrides[f.id]){ html+='<button class="btn sm ghost" data-act="restore">↺ Вернуть исходное</button>'; }
+      html+='<span class="spacer"></span>';
+      html+='<span id="delSlot"></span>';
+      html+='</div>';
+    } else if (dbReady){
+      html+='<p class="ro-note">Режим просмотра. Чтобы дополнять дерево, откройте справочник с доступом на редактирование (или войдите в аккаунт, которому он принадлежит).</p>';
+    }
+
+    el.innerHTML=html;
+
+    var delSlot=document.getElementById("delSlot");
+    if(delSlot){
+      var canDelete = !BUILTIN_IDS[f.id] || true; // builtin -> hide (tombstone), custom -> delete
+      if(!BUILTIN_IDS[f.id]){
+        delSlot.innerHTML='<button class="btn sm danger" data-act="del">🗑 Удалить</button>';
+      } else {
+        delSlot.innerHTML='<button class="btn sm danger" data-act="hide">Скрыть из дерева</button>';
+      }
+    }
+  }
+
+  // ——— navigation ———
+  document.getElementById("tree").addEventListener("click", function(e){
+    var n=e.target.closest(".node"); if(!n) return;
+    state.selected=n.dataset.id; render();
+  });
+  document.querySelector(".tabs").addEventListener("click", function(e){
+    var t=e.target.closest(".tab"); if(!t) return;
+    state.family=t.dataset.fam;
+    var first=childrenOf("",state.family)[0];
+    if(first && (!get(state.selected) || get(state.selected).family!==state.family)) state.selected=first.id;
+    render();
+  });
+  document.getElementById("detail").addEventListener("click", function(e){
+    var g=e.target.closest("[data-goto]");
+    if(g){ var t=get(g.dataset.goto); if(t){ state.family=t.family; state.selected=t.id; render(); } return; }
+    var a=e.target.closest("[data-act]"); if(!a) return;
+    var act=a.dataset.act, f=get(state.selected);
+    if(act==="edit") openModal(f, false);
+    else if(act==="child") openModal({family:f.family, parent:f.id}, true);
+    else if(act==="restore") restoreBuiltin(f.id);
+    else if(act==="del") confirmDelete(a, f, false);
+    else if(act==="hide") confirmDelete(a, f, true);
+  });
+
+  function confirmDelete(btn, f, isHide){
+    var slot=document.getElementById("delSlot");
+    slot.innerHTML='<span class="confirm">'+(isHide?"Скрыть из дерева?":"Удалить фигуру?")
+      +' <button class="btn sm danger" data-yes="1">Да</button>'
+      +'<button class="btn sm ghost" data-no="1">Нет</button></span>';
+    slot.querySelector("[data-yes]").addEventListener("click", function(){ removeFigure(f, isHide); });
+    slot.querySelector("[data-no]").addEventListener("click", renderDetail);
+  }
+
+  // ——— persistence ———
+  function cleanBody(d){
+    return {
+      name:d.name||"Без названия", family:d.family||"quad", parent:d.parent||"",
+      alsoParent:d.alsoParent||"", shape:d.shape||"custom",
+      definition:d.definition||"", adds:d.adds||"",
+      properties:arr(d.properties), signs:arr(d.signs), formulas:arr(d.formulas),
+      order:(d.order==null?100:d.order), builtin:false
+    };
+  }
+  function saveFigure(body, id){
+    var docId = id || ("u_"+Math.random().toString(36).slice(2,9));
+    var payload = cleanBody(body);
+    overrides[docId] = payload;                    // оптимистично: сразу показываем
+    saveCache();
+    state.family=body.family||state.family; state.selected=docId;
+    closeModal(); render();
+    if(!sb){ toast("Сохранено локально (нет связи с облаком)"); return; }
+    sb.from(TABLE).upsert({id:docId, payload:payload, updated_at:new Date().toISOString()}).then(function(res){
+      if(res.error){ toast("Не удалось сохранить в облако: "+res.error.message); }
+      else { toast("Сохранено ✓ (синхронизировано)"); }
+    });
+  }
+  function removeFigure(f, isHide){
+    var pr;
+    if(BUILTIN_IDS[f.id]){
+      var tomb={name:f.name, family:f.family, deleted:true};
+      overrides[f.id]=tomb; saveCache();
+      pr = sb ? sb.from(TABLE).upsert({id:f.id, payload:tomb, updated_at:new Date().toISOString()}) : null;
+    } else {
+      delete overrides[f.id]; saveCache();
+      pr = sb ? sb.from(TABLE).delete().eq("id", f.id) : null;
+    }
+    state.selected = (f.parent && get(f.parent)) ? f.parent : (childrenOf("",state.family)[0]||{}).id;
+    render();
+    if(pr){ pr.then(function(res){
+      if(res && res.error){ toast("Ошибка синхронизации: "+res.error.message); }
+      else { toast(isHide?"Скрыто из дерева":"Удалено"); }
+    }); } else { toast(isHide?"Скрыто (локально)":"Удалено (локально)"); }
+  }
+  function restoreBuiltin(id){
+    delete overrides[id]; saveCache(); render();
+    if(!sb){ toast("Возвращено (локально)"); return; }
+    sb.from(TABLE).delete().eq("id", id).then(function(res){
+      if(res && res.error){ toast("Ошибка: "+res.error.message); }
+      else { toast("Вернули исходное"); }
+    });
+  }
+
+  // ——— modal ———
+  function famOptions(sel){
+    return '<option value="quad"'+(sel==="quad"?" selected":"")+'>Четырёхугольники</option>'
+         + '<option value="tri"'+(sel==="tri"?" selected":"")+'>Треугольники</option>';
+  }
+  function shapeOptions(sel){
+    return Object.keys(SHAPE_NAMES).map(function(k){
+      return '<option value="'+k+'"'+(sel===k?" selected":"")+'>'+esc(SHAPE_NAMES[k])+'</option>';
+    }).join("");
+  }
+  function parentOptions(fam, sel, excludeId){
+    var excl={};
+    if(excludeId){ excl[excludeId]=true; descendants(excludeId,fam).forEach(function(i){excl[i]=true;}); }
+    var opts='<option value="">— ни из чего (корень)</option>';
+    figuresOf(fam).filter(function(f){return !excl[f.id];})
+      .sort(function(a,b){return a.name.localeCompare(b.name,"ru");})
+      .forEach(function(f){ opts+='<option value="'+esc(f.id)+'"'+(sel===f.id?" selected":"")+'>'+esc(f.name)+'</option>'; });
+    return opts;
+  }
+  function openModal(data, isNew){
+    data=data||{}; if(isNew) data=Object.assign({shape:"custom"},data);
+    var editId = isNew ? null : data.id;
+    var root=document.getElementById("modalRoot");
+    root.innerHTML =
+      '<div class="overlay" id="ov"><div class="modal" role="dialog" aria-modal="true" aria-label="'+(isNew?"Новая фигура":"Редактирование")+'">'
+      + '<h3>'+(isNew?"Новая фигура":"Редактировать: "+esc(data.name||""))+'</h3>'
+      + '<p class="sub">Каждый список — по одному пункту в строке.</p>'
+      + '<div class="field"><label>Название</label><input id="f_name" value="'+esc(data.name||"")+'" placeholder="Например: Дельтоид"></div>'
+      + '<div class="grid2">'
+      +   '<div class="field"><label>Семья</label><select id="f_family">'+famOptions(data.family||"quad")+'</select></div>'
+      +   '<div class="field"><label>Форма (значок)</label><select id="f_shape">'+shapeOptions(data.shape||"custom")+'</select></div>'
+      + '</div>'
+      + '<div class="field"><label>Вырастает из <span class="desc">— родитель в дереве</span></label><select id="f_parent">'+parentOptions(data.family||"quad", data.parent||"", editId)+'</select></div>'
+      + '<div class="field"><label>Определение</label><textarea id="f_def" placeholder="Что это за фигура?">'+esc(data.definition||"")+'</textarea></div>'
+      + '<div class="field"><label>Что нового <span class="desc">— чем отличается от родителя (необязательно)</span></label><input id="f_adds" value="'+esc(data.adds||"")+'"></div>'
+      + '<div class="field"><label>Свойства <span class="desc">— что верно, раз фигура уже такая</span></label><textarea id="f_prop">'+esc(arr(data.properties).join("\n"))+'</textarea></div>'
+      + '<div class="field"><label>Признаки <span class="desc">— как доказать, что это именно она</span></label><textarea id="f_sign">'+esc(arr(data.signs).join("\n"))+'</textarea></div>'
+      + '<div class="field"><label>Формулы</label><textarea id="f_form" placeholder="S = a · b">'+esc(arr(data.formulas).join("\n"))+'</textarea></div>'
+      + '<div class="modal-actions"><button class="btn ghost" id="m_cancel">Отмена</button><button class="btn" id="m_save">Сохранить</button></div>'
+      + '</div></div>';
+
+    var famSel=document.getElementById("f_family");
+    famSel.addEventListener("change", function(){
+      document.getElementById("f_parent").innerHTML = parentOptions(famSel.value, "", editId);
+    });
+    document.getElementById("m_cancel").addEventListener("click", closeModal);
+    document.getElementById("ov").addEventListener("click", function(e){ if(e.target.id==="ov") closeModal(); });
+    document.getElementById("m_save").addEventListener("click", function(){
+      var lines=function(id){ return document.getElementById(id).value.split("\n").map(function(s){return s.trim();}).filter(Boolean); };
+      var name=document.getElementById("f_name").value.trim();
+      if(!name){ toast("Впиши название фигуры."); return; }
+      var body={
+        name:name, family:famSel.value, parent:document.getElementById("f_parent").value,
+        shape:document.getElementById("f_shape").value,
+        definition:document.getElementById("f_def").value.trim(),
+        adds:document.getElementById("f_adds").value.trim(),
+        properties:lines("f_prop"), signs:lines("f_sign"), formulas:lines("f_form"),
+        order: (data.order==null?100:data.order)
+      };
+      saveFigure(body, editId);
+    });
+    document.getElementById("f_name").focus();
+  }
+  function closeModal(){ document.getElementById("modalRoot").innerHTML=""; }
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") closeModal(); });
+
+  document.getElementById("addBtn").addEventListener("click", function(){
+    openModal({family:state.family, parent:""}, true);
+  });
+
+  // ——— toast ———
+  var toastT;
+  function toast(msg){
+    var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+    clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.remove("show"); },2600);
+  }
+
+  // ——— boot ———
+  loadCache();
+  render(); // встроенное содержимое + кэш видны сразу
+
+  (function connectCloud(){
+    try{
+      if(window.supabase && window.supabase.createClient && SUPABASE_URL.indexOf("http")===0){
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        pullCloud(); // подтянуть общее состояние
+        // realtime: при любых изменениях в таблице — перечитать и перерисовать
+        var deb;
+        sb.channel("figures-rt")
+          .on("postgres_changes", {event:"*", schema:"public", table:TABLE}, function(){
+            clearTimeout(deb); deb=setTimeout(pullCloud, 250);
+          })
+          .subscribe();
+        // на случай, если realtime не поднялся — тихий опрос раз в 30с
+        setInterval(pullCloud, 30000);
+      }
+    }catch(e){ /* остаёмся на кэше + встроенном */ }
+  })();
+
+})();
+</script>
+</body>
+</html>
