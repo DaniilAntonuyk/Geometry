@@ -231,6 +231,19 @@
   #toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; font-weight:600; font-size:13.5px; box-shadow:var(--shadow); opacity:0; transition:.25s; pointer-events:none; z-index:60; max-width:92vw}
   #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
 
+  /* offline banner — не блокирует остальную страницу */
+  .offbar{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:20px 16px; z-index:45; pointer-events:none; overflow:auto}
+  .offcard{pointer-events:auto; background:var(--surface); border:1px solid var(--sign); border-top:5px solid var(--sign); border-radius:16px; box-shadow:0 8px 40px rgba(20,32,47,.28); max-width:480px; width:100%; padding:22px 22px 24px; margin:auto}
+  .offcard h3{margin:0 0 4px; font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:21px; display:flex; align-items:center; gap:9px}
+  .offcard .warn{color:var(--sign)}
+  .offcard p{margin:8px 0; font-size:14px; line-height:1.5}
+  .offcard ol{margin:10px 0 4px; padding-left:20px; font-size:14px; line-height:1.55}
+  .offcard ol li{margin:5px 0}
+  .offcard .pend{background:var(--sign-soft); border-radius:9px; padding:8px 12px; font-size:13px; font-weight:600; color:var(--sign); margin:12px 0 0}
+  .offcard .row{display:flex; flex-wrap:wrap; gap:9px; margin-top:16px}
+  .offcard a.golink{flex:1 1 auto; text-align:center; text-decoration:none}
+  @media (max-width:520px){ .offcard a.golink{flex:1 1 100%} }
+
   @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
 </head>
@@ -262,6 +275,7 @@
 </div>
 
 <div id="modalRoot"></div>
+<div id="bannerRoot"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -272,8 +286,12 @@
   // ——— облако (Supabase) ———
   var SUPABASE_URL = "https://ivtcfmtkiimjkmoxjfug.supabase.co";
   var SUPABASE_KEY = "sb_publishable_GgefYSwZceoOKw0Z0dZqiQ_Kop9T6sD";
+  var DASHBOARD_URL = "https://supabase.com/dashboard/project/ivtcfmtkiimjkmoxjfug";
   var TABLE = "figures";
   var sb = null;
+  var cloudOnline = true;          // связь с базой в порядке?
+  var pending = {};                // очередь неотправленных правок: id -> {op, payload?}
+  var PENDING_KEY = "geotree_pending_v1";
 
   var SHAPE_PTS = {
     quad:"5,9 43,6 39,29 9,31",
@@ -403,23 +421,91 @@
   var overrides = {};              // id -> изменения (общие для всех устройств)
   var state = { family:"quad", selected:"parallelogram" };
 
-  // localStorage используется только как офлайн-кэш последнего состояния
+  // localStorage — офлайн-кэш последнего состояния + очередь неотправленного
   function loadCache(){
     try{ var raw=localStorage.getItem(CACHE_KEY); overrides = raw ? (JSON.parse(raw)||{}) : {}; }
     catch(e){ overrides = {}; }
+    try{ var pr=localStorage.getItem(PENDING_KEY); pending = pr ? (JSON.parse(pr)||{}) : {}; }
+    catch(e){ pending = {}; }
   }
   function saveCache(){
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(overrides)); }catch(e){}
   }
+  function savePending(){
+    try{ localStorage.setItem(PENDING_KEY, JSON.stringify(pending)); }catch(e){}
+  }
+  function pendingCount(){ return Object.keys(pending).length; }
+
+  // определить, «сетевая» ли это ошибка (база недоступна/спит) или обычная ошибка БД
+  function isNetErr(e){
+    if(!e) return false;
+    if(!e.code) return true; // у сетевых сбоев кода обычно нет
+    return /fetch|network|load failed|timeout|unavailable|50[234]|econn/i.test((e.message||"")+" "+(e.code||""));
+  }
+  // единая обёртка над вызовом Supabase: следит за онлайн-статусом
+  function sbCall(fn){
+    return Promise.resolve().then(fn).then(function(res){
+      if(res && res.error){
+        if(isNetErr(res.error)){ setOnline(false); return {offline:true, error:res.error}; }
+        setOnline(true); return {error:res.error};
+      }
+      setOnline(true); return {data: res && res.data};
+    }, function(err){ setOnline(false); return {offline:true, error:err}; });
+  }
+
+  function setOnline(v){
+    var was=cloudOnline; cloudOnline=v;
+    if(v && !was){ // связь вернулась
+      renderBanner(); flushQueue();
+    } else if(!v && was){
+      renderBanner();
+    } else {
+      renderBanner();
+    }
+  }
+
   // подтянуть все правки из облака и перерисовать
   function pullCloud(){
     if(!sb) return Promise.resolve();
-    return sb.from(TABLE).select("id,payload").then(function(res){
-      if(res.error){ return; }
+    return sbCall(function(){ return sb.from(TABLE).select("id,payload"); }).then(function(r){
+      if(r.offline || r.error) return;      // остаёмся на кэше
       var next={};
-      (res.data||[]).forEach(function(row){ if(row && row.id) next[row.id]=row.payload||{}; });
+      (r.data||[]).forEach(function(row){ if(row && row.id) next[row.id]=row.payload||{}; });
       overrides=next; saveCache(); render();
+      flushQueue();                          // база жива — до-отправим накопленное
     });
+  }
+
+  // отправить одну операцию в облако
+  function sendOp(id, op){
+    if(op.op==="delete"){
+      return sbCall(function(){ return sb.from(TABLE).delete().eq("id", id); });
+    }
+    return sbCall(function(){ return sb.from(TABLE).upsert({id:id, payload:op.payload, updated_at:new Date().toISOString()}); });
+  }
+  // попытаться отправить всю очередь; на первой же «сетевой» ошибке — стоп
+  var flushing=false;
+  function flushQueue(){
+    if(flushing || !sb) return;
+    var ids=Object.keys(pending);
+    if(!ids.length){ return; }
+    flushing=true;
+    var i=0;
+    function step(){
+      if(i>=ids.length){ flushing=false; renderBanner();
+        if(!pendingCount() && cloudOnline){ toast("Все правки синхронизированы ✓"); }
+        return;
+      }
+      var id=ids[i++];
+      var op=pending[id];
+      if(!op){ return step(); }
+      sendOp(id, op).then(function(r){
+        if(r.offline){ flushing=false; renderBanner(); return; } // база недоступна — ждём
+        if(!r.error){ delete pending[id]; savePending(); }        // успех — убираем из очереди
+        step();
+      });
+    }
+    step();
   }
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
@@ -620,6 +706,16 @@
       order:(d.order==null?100:d.order), builtin:false
     };
   }
+  // применить операцию локально (кэш) и попытаться отправить; при неудаче — в очередь
+  function queueAndSend(id, op, okMsg){
+    pending[id]=op; savePending();
+    if(!sb){ renderBanner(); toast("Сохранено на устройстве (нет связи с облаком)"); return; }
+    sendOp(id, op).then(function(r){
+      if(r.offline){ renderBanner(); toast("Сохранено на устройстве — отправится, когда база проснётся"); return; }
+      if(r.error){ toast("Ошибка базы: "+(r.error.message||"")); return; }
+      delete pending[id]; savePending(); renderBanner(); toast(okMsg);
+    });
+  }
   function saveFigure(body, id){
     var docId = id || ("u_"+Math.random().toString(36).slice(2,9));
     var payload = cleanBody(body);
@@ -627,36 +723,56 @@
     saveCache();
     state.family=body.family||state.family; state.selected=docId;
     closeModal(); render();
-    if(!sb){ toast("Сохранено локально (нет связи с облаком)"); return; }
-    sb.from(TABLE).upsert({id:docId, payload:payload, updated_at:new Date().toISOString()}).then(function(res){
-      if(res.error){ toast("Не удалось сохранить в облако: "+res.error.message); }
-      else { toast("Сохранено ✓ (синхронизировано)"); }
-    });
+    queueAndSend(docId, {op:"upsert", payload:payload}, "Сохранено ✓ (синхронизировано)");
   }
   function removeFigure(f, isHide){
-    var pr;
     if(BUILTIN_IDS[f.id]){
       var tomb={name:f.name, family:f.family, deleted:true};
       overrides[f.id]=tomb; saveCache();
-      pr = sb ? sb.from(TABLE).upsert({id:f.id, payload:tomb, updated_at:new Date().toISOString()}) : null;
+      state.selected = (f.parent && get(f.parent)) ? f.parent : (childrenOf("",state.family)[0]||{}).id;
+      render();
+      queueAndSend(f.id, {op:"upsert", payload:tomb}, isHide?"Скрыто из дерева":"Удалено");
     } else {
       delete overrides[f.id]; saveCache();
-      pr = sb ? sb.from(TABLE).delete().eq("id", f.id) : null;
+      state.selected = (f.parent && get(f.parent)) ? f.parent : (childrenOf("",state.family)[0]||{}).id;
+      render();
+      queueAndSend(f.id, {op:"delete"}, isHide?"Скрыто из дерева":"Удалено");
     }
-    state.selected = (f.parent && get(f.parent)) ? f.parent : (childrenOf("",state.family)[0]||{}).id;
-    render();
-    if(pr){ pr.then(function(res){
-      if(res && res.error){ toast("Ошибка синхронизации: "+res.error.message); }
-      else { toast(isHide?"Скрыто из дерева":"Удалено"); }
-    }); } else { toast(isHide?"Скрыто (локально)":"Удалено (локально)"); }
   }
   function restoreBuiltin(id){
     delete overrides[id]; saveCache(); render();
-    if(!sb){ toast("Возвращено (локально)"); return; }
-    sb.from(TABLE).delete().eq("id", id).then(function(res){
-      if(res && res.error){ toast("Ошибка: "+res.error.message); }
-      else { toast("Вернули исходное"); }
-    });
+    queueAndSend(id, {op:"delete"}, "Вернули исходное");
+  }
+
+  // ——— баннер «нет связи с базой» ———
+  function renderBanner(){
+    var root=document.getElementById("bannerRoot");
+    var show = (!cloudOnline) && !!sb;   // показываем только когда реально нет связи с облаком
+    if(!show){ root.innerHTML=""; return; }
+    var n=pendingCount();
+    var pend = n>0 ? '<p class="pend">📦 Несохранённых в облако правок: '+n+'. Они на этом устройстве и отправятся сами, как только база проснётся.</p>' : '';
+    root.innerHTML =
+      '<div class="offbar"><div class="offcard" role="alertdialog" aria-label="Нет связи с базой">'
+      + '<h3><span class="warn">⚠️</span> Нет связи с базой данных</h3>'
+      + '<p>Скорее всего, база данных «уснула» — так бывает на бесплатном тарифе после ~недели простоя. Справочник читается, но новые правки пока не уходят в облако.</p>'
+      + '<p><b>Что сделать, чтобы разбудить (1 минута):</b></p>'
+      + '<ol>'
+      +   '<li>Открой панель Supabase — кнопка ниже.</li>'
+      +   '<li>Войди своим аккаунтом, если попросит.</li>'
+      +   '<li>На странице проекта нажми кнопку <b>Restore</b> (или <b>Resume project</b>).</li>'
+      +   '<li>Подожди ~1 минуту, вернись сюда и нажми «Проверить снова».</li>'
+      + '</ol>'
+      + pend
+      + '<div class="row">'
+      +   '<a class="btn golink" href="'+DASHBOARD_URL+'" target="_blank" rel="noopener">Открыть панель Supabase ↗</a>'
+      +   '<button class="btn ghost" id="off_retry">Проверить снова</button>'
+      +   '<button class="btn ghost" id="off_close">Закрыть</button>'
+      + '</div>'
+      + '</div></div>';
+    var r=document.getElementById("off_retry");
+    if(r) r.addEventListener("click", function(){ toast("Проверяю связь…"); pullCloud(); });
+    var c=document.getElementById("off_close");
+    if(c) c.addEventListener("click", function(){ document.getElementById("bannerRoot").innerHTML=""; });
   }
 
   // ——— modal ———
